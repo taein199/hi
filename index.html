@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ultimate Stickman Boxing - Pure Action Edition</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #050505; overflow: hidden; touch-action: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none;
+            -webkit-user-select: none;
+        }
+        #game-container {
+            position: relative; width: 100%; height: 100%;
+            margin: 0 auto; background: radial-gradient(circle at center, #131326 0%, #07070f 100%); overflow: hidden;
+        }
+        canvas { display: block; width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); }
+        
+        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .bar-container { position: absolute; width: 38%; background: rgba(0,0,0,0.8); border: 2px solid #333; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }
+        .hp-box { top: 4%; height: 22px; border-color: #fff; }
+        .sp-box { top: calc(4% + 28px); height: 8px; border-color: #555; }
+        
+        #p1-hp-box, #p1-sp-box { left: 15px; }
+        #p2-hp-box, #p2-sp-box { right: 15px; }
+        
+        .bar { height: 100%; width: 100%; transition: width 0.15s ease-out; }
+        #p1-hp { background: linear-gradient(90deg, #00d2ff, #3a7bd5); transform-origin: left; box-shadow: 0 0 10px #00d2ff; }
+        #p2-hp { background: linear-gradient(90deg, #f12711, #f5af19); transform-origin: right; float: right; box-shadow: 0 0 10px #f5af19; }
+        
+        #p1-sp { background: #00ff88; transform-origin: left; }
+        #p2-sp { background: #00ff88; transform-origin: right; float: right; }
+        
+        .win-message {
+            position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 38px; font-weight: 900; color: white; text-shadow: 0 0 20px rgba(255,255,255,0.8);
+            display: none; text-align: center; pointer-events: auto; width: 90%; letter-spacing: 2px;
+        }
+        .restart-btn {
+            margin-top: 20px; padding: 12px 30px; font-size: 20px; font-weight: bold; text-transform: uppercase;
+            background: linear-gradient(45deg, #ff0844 0%, #ffb199 100%); color: white; border: none; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 8, 68, 0.4); transition: transform 0.1s;
+        }
+        .restart-btn:active { transform: scale(0.95); }
+
+        .joystick-zone {
+            position: absolute; bottom: 0; width: 35%; height: 50%; 
+            pointer-events: auto; z-index: 20; touch-action: none;
+        }
+        #p1-joy-zone { left: 0; }
+        #p2-joy-zone { right: 0; }
+        .dynamic-joy {
+            position: absolute; width: 120px; height: 120px;
+            background: rgba(255, 255, 255, 0.05); border-radius: 50%;
+            border: 2px solid rgba(0, 255, 255, 0.3); display: none; transform: translate(-50%, -50%); pointer-events: none;
+            box-shadow: 0 0 15px rgba(0,255,255,0.1);
+        }
+        .dynamic-knob {
+            position: absolute; top: 30px; left: 30px; width: 60px; height: 60px;
+            background: rgba(255, 255, 255, 0.9); border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5), inset 0 -3px 5px rgba(0,0,0,0.2); pointer-events: none;
+        }
+
+        .skill-panel {
+            position: absolute; bottom: 15px; width: 180px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+            pointer-events: auto; z-index: 30; touch-action: none;
+        }
+        #p1-skills { left: 15px; } 
+        #p2-skills { right: 15px; direction: rtl; } 
+
+        .skill-btn {
+            background: rgba(20, 20, 30, 0.85); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
+            color: #fff; font-size: 11px; font-weight: 800; height: 44px;
+            display: flex; justify-content: center; align-items: center; text-align: center;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.8); word-break: keep-all; line-height: 1.2;
+            cursor: pointer; -webkit-tap-highlight-color: transparent; transition: all 0.05s;
+        }
+        .skill-btn:active, .skill-btn.active {
+            transform: translateY(4px); box-shadow: 0 0 0 rgba(0,0,0,0.9);
+            background: rgba(255, 255, 255, 0.95); color: #000; font-weight: 900;
+        }
+        
+        .btn-atk { border-bottom-color: #ff4757; color: #ff6b81; }
+        .btn-pow { border-bottom-color: #ffa502; color: #ffa502; }
+        .btn-def { border-bottom-color: #2ed573; color: #7bed9f; }
+        .btn-wide { grid-column: span 3; height: 36px; font-size: 13px; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="ui-layer">
+        <div class="bar-container hp-box" id="p1-hp-box"><div id="p1-hp" class="bar"></div></div>
+        <div class="bar-container sp-box" id="p1-sp-box"><div id="p1-sp" class="bar"></div></div>
+        
+        <div class="bar-container hp-box" id="p2-hp-box"><div id="p2-hp" class="bar"></div></div>
+        <div class="bar-container sp-box" id="p2-sp-box"><div id="p2-sp" class="bar"></div></div>
+        
+        <div id="win-screen" class="win-message">
+            <span id="win-text"></span><br>
+            <button class="restart-btn" onclick="initGame()">REMATCH</button>
+        </div>
+    </div>
+
+    <div id="p1-joy-zone" class="joystick-zone">
+        <div id="p1-joy" class="dynamic-joy"><div id="p1-knob" class="dynamic-knob"></div></div>
+    </div>
+    <div id="p1-skills" class="skill-panel">
+        <div class="skill-btn btn-atk" id="p1-btn-jab">쨉</div>
+        <div class="skill-btn btn-atk" id="p1-btn-straight">스트레이트</div>
+        <div class="skill-btn btn-atk" id="p1-btn-hook">훅</div>
+        <div class="skill-btn btn-pow" id="p1-btn-uppercut">어퍼컷</div>
+        <div class="skill-btn btn-pow" id="p1-btn-bodyblow">바디</div>
+        <div class="skill-btn btn-pow" id="p1-btn-overhand">오버핸드</div>
+        <div class="skill-btn btn-def" id="p1-btn-weaving">위빙</div>
+        <div class="skill-btn btn-def" id="p1-btn-ducking">더킹</div>
+        <div class="skill-btn btn-def" id="p1-btn-block">블록(꾹)</div>
+        <div class="skill-btn btn-atk btn-wide" id="p1-btn-onetwo">원투 콤보</div>
+    </div>
+
+    <div id="p2-joy-zone" class="joystick-zone">
+        <div id="p2-joy" class="dynamic-joy" style="border-color: rgba(255, 165, 0, 0.3); box-shadow: 0 0 15px rgba(255, 165, 0, 0.1);">
+            <div id="p2-knob" class="dynamic-knob"></div>
+        </div>
+    </div>
+    <div id="p2-skills" class="skill-panel">
+        <div class="skill-btn btn-atk" id="p2-btn-jab">쨉</div>
+        <div class="skill-btn btn-atk" id="p2-btn-straight">스트레이트</div>
+        <div class="skill-btn btn-atk" id="p2-btn-hook">훅</div>
+        <div class="skill-btn btn-pow" id="p2-btn-uppercut">어퍼컷</div>
+        <div class="skill-btn btn-pow" id="p2-btn-bodyblow">바디</div>
+        <div class="skill-btn btn-pow" id="p2-btn-overhand">오버핸드</div>
+        <div class="skill-btn btn-def" id="p2-btn-weaving">위빙</div>
+        <div class="skill-btn btn-def" id="p2-btn-ducking">더킹</div>
+        <div class="skill-btn btn-def" id="p2-btn-block">블록(꾹)</div>
+        <div class="skill-btn btn-atk btn-wide" id="p2-btn-onetwo">원투 콤보</div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let cw, ch, GROUND_Y;
+    let screenShake = 0;
+    let screenFlashAlpha = 0; 
+    let screenFlashColor = '#ffffff';
+    
+    function resize() {
+        cw = canvas.width = window.innerWidth;
+        ch = canvas.height = window.innerHeight;
+        GROUND_Y = ch - (ch * 0.22);
+        if (p1 && !p1.isJumping) p1.y = GROUND_Y;
+        if (p2 && !p2.isJumping) p2.y = GROUND_Y;
+    }
+    window.addEventListener('resize', resize);
+
+    let gameActive = true;
+    let particles = [];
+    let texts = [];
+    let shockwaves = []; 
+
+    // 👑 슬로우모션 효과(hitstop)를 완전히 제거하여 연속 공격이 끊김없이 즉시 발동됨
+    const SKILLS = {
+        'jab': { dmg: 4, reach: 95, dur: 10, hitFrames: [5], type: 'high', sp: 5 },
+        'straight': { dmg: 8, reach: 125, dur: 16, hitFrames: [8], type: 'high', sp: 12 },
+        'hook': { dmg: 10, reach: 90, dur: 18, hitFrames: [9], type: 'high', sp: 15 },
+        'uppercut': { dmg: 14, reach: 85, dur: 22, hitFrames: [10], type: 'high', sp: 20 },
+        'bodyblow': { dmg: 11, reach: 100, dur: 17, hitFrames: [8], type: 'low', sp: 15 },
+        'overhand': { dmg: 18, reach: 115, dur: 28, hitFrames: [14], type: 'high', sp: 25 },
+        'onetwo': { dmg: 15, reach: 125, dur: 25, hitFrames: [5, 15], type: 'high', sp: 20 },
+        'weaving': { dur: 20, evade: 'high', sp: 10 },
+        'ducking': { dur: 16, evade: 'high', sp: 10 },
+        'block': { dur: 9999, reduce: 0.3, sp: 0 }
+    };
+
+    class Particle {
+        constructor(x, y, color, isSpark, attackerDir) {
+            this.x = x; this.y = y;
+            this.vx = attackerDir * (Math.random() * 11 + 4) + (Math.random() - 0.5) * 6;
+            this.vy = (Math.random() - 1.0) * 9 - 2;
+            this.gravity = 0.6; this.life = 1.0;
+            this.decay = Math.random() * 0.05 + 0.03;
+            this.color = color;
+            this.size = isSpark ? Math.random() * 3.5 + 1.5 : Math.random() * 6 + 3;
+            this.isSpark = isSpark;
+        }
+        update() { 
+            this.vy += this.gravity; this.x += this.vx; this.y += this.vy;
+            if (this.y > GROUND_Y) { this.y = GROUND_Y; this.vy *= -0.25; this.vx *= 0.6; }
+            this.life -= this.decay; 
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = this.isSpark ? 10 : 0; ctx.shadowColor = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    class Shockwave {
+        constructor(x, y, color) {
+            this.x = x; this.y = y; this.color = color;
+            this.radius = 5; this.maxRadius = 80;
+            this.alpha = 0.7; this.growth = 12; 
+        }
+        update() {
+            this.radius += this.growth;
+            this.alpha -= 0.09;
+        }
+        draw(ctx) {
+            if (this.alpha <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = this.alpha;
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3.5;
+            ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    class FloatingText {
+        constructor(x, y, text, color, size=24) {
+            this.x = x + (Math.random()-0.5)*15; 
+            this.y = y + (Math.random()-0.5)*10; 
+            this.text = text; this.color = color; this.life = 1.0; 
+            this.size = size; 
+            this.vy = -3;
+            this.vx = (Math.random() - 0.5) * 1;
+        }
+        update() { 
+            this.x += this.vx; this.y += this.vy; 
+            this.vy *= 0.92; this.life -= 0.04; 
+        }
+        draw(ctx) {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.font = `900 italic ${this.size}px Arial`;
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+            ctx.fillText(this.text, this.x, this.y);
+            ctx.restore();
+        }
+    }
+
+    function spawnHitEffect(x, y, dmg, attackerDir, isBlocked) {
+        screenShake = Math.min(12, dmg * 0.9); 
+        
+        shockwaves.push(new Shockwave(x, y, isBlocked ? '#2ed573' : (dmg >= 12 ? '#ff0055' : '#ffeb3b')));
+
+        if (!isBlocked && dmg >= 12) {
+            screenFlashAlpha = 0.12;
+            screenFlashColor = '#ffffff';
+        }
+
+        // 👑 의성어 글자 생성 코드가 완전히 삭제되었습니다.
+
+        const count = isBlocked ? 5 : (dmg * 0.9 + 5);
+        for(let i=0; i<count; i++) {
+            particles.push(new Particle(x, y, isBlocked ? '#2ed573' : '#ffeb3b', true, attackerDir)); 
+        }
+        if (!isBlocked) {
+            for(let i=0; i<count*0.5; i++) {
+                particles.push(new Particle(x, y, '#ff4757', false, attackerDir)); 
+            }
+        }
+    }
+
+    class Player {
+        constructor(x, color, dir, prefix) {
+            this.x = x; this.y = GROUND_Y; this.color = color; this.dir = dir;
+            this.prefix = prefix;
+            this.hp = 100; this.sp = 100; 
+            this.state = 'idle'; this.frame = 0; this.moveX = 0;
+            this.speed = 6.0; this.hitHits = []; 
+            this.isBlockHolding = false;
+            this.vy = 0; this.gravity = 1.5; this.isJumping = false;
+        }
+
+        attack(type) {
+            if (!gameActive) return;
+            if (type === 'block') { this.isBlockHolding = true; this.state = 'block'; this.frame = 0; return; }
+            if (this.state !== 'idle' && this.state !== 'move' && this.state !== 'block' && this.state !== 'hit') return;
+            
+            const cost = SKILLS[type].sp;
+            if (this.sp < cost) {
+                texts.push(new FloatingText(this.x, this.y - 120, "지침!", "#ff9f43", 18));
+                return;
+            }
+            
+            this.sp -= cost;
+            this.state = type; this.frame = 0; this.hitHits = []; 
+            updateBars();
+        }
+
+        releaseBlock() {
+            this.isBlockHolding = false;
+            if (this.state === 'block') { this.state = 'idle'; this.frame = 0; }
+        }
+
+        update(opponent) {
+            if (!gameActive) return;
+
+            if (this.isJumping) {
+                this.vy += this.gravity; this.y += this.vy;
+                if (this.y >= GROUND_Y) { this.y = GROUND_Y; this.vy = 0; this.isJumping = false; }
+            } else { this.y = GROUND_Y; }
+
+            if (this.state === 'idle' || this.state === 'move') {
+                this.sp += 0.5; if (this.sp > 100) this.sp = 100;
+                updateBars();
+            }
+
+            if (this.state === 'idle' || this.state === 'move' || this.state === 'block') {
+                this.dir = this.x < opponent.x ? 1 : -1;
+            }
+
+            if (this.state === 'block' && this.isBlockHolding) { this.moveX = 0; }
+
+            if (this.state === 'idle' || this.state === 'move') {
+                this.x += this.moveX * this.speed;
+                if (this.x < 40) this.x = 40; if (this.x > cw - 40) this.x = cw - 40;
+                
+                const dist = Math.abs(this.x - opponent.x);
+                if (dist < 50 && ((this.dir === 1 && this.moveX > 0) || (this.dir === -1 && this.moveX < 0))) {
+                    this.x -= this.moveX * this.speed; 
+                }
+                if (this.moveX !== 0) { this.state = 'move'; this.frame++; } 
+                else { this.state = 'idle'; this.frame = 0; }
+                
+            } else if (this.state === 'hit') {
+                this.frame++; 
+                let knockback = Math.max(0, 8.0 - (this.frame * 0.7));
+                this.x -= this.dir * knockback;
+                if (this.frame > 10) { this.state = this.isBlockHolding ? 'block' : 'idle'; this.frame = 0; }
+            } else if (this.state === 'block') {
+                if (!this.isBlockHolding) { this.state = 'idle'; this.frame = 0; }
+            } else {
+                this.frame++;
+                const skill = SKILLS[this.state];
+                
+                if (skill) {
+                    if (skill.hitFrames) {
+                        skill.hitFrames.forEach((hitFrame, idx) => {
+                            if (this.frame === hitFrame && !this.hitHits.includes(idx)) {
+                                this.hitHits.push(idx);
+                                const hitX = this.x + skill.reach * this.dir;
+                                const hitY = this.y - (skill.type==='high'?80:35);
+                                
+                                const distX = Math.abs(hitX - opponent.x);
+                                const distY = Math.abs(hitY - (opponent.y - 50)); 
+                                
+                                if (distX < 145 && distY < 125) { 
+                                    if (opponent.state === 'ducking' || opponent.state === 'weaving') {
+                                        texts.push(new FloatingText(opponent.x, opponent.y - 110, "MISS", "#a4b0be", 22));
+                                    } else {
+                                        let finalDmg = skill.dmg;
+                                        let isBlocked = false;
+                                        if (opponent.state === 'block') {
+                                            finalDmg = Math.floor(finalDmg * SKILLS.block.reduce);
+                                            isBlocked = true;
+                                        }
+                                        opponent.takeDamage(finalDmg, this.dir, opponent.x, opponent.y - (skill.type==='high'?85:40), isBlocked);
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    if (this.state === 'overhand' && this.frame < 11) this.x += this.dir * 4.5; 
+                    if (this.state === 'ducking') this.x += this.dir * 2;
+                    if (this.frame >= skill.dur) { this.state = this.isBlockHolding ? 'block' : 'idle'; this.frame = 0; }
+                }
+            }
+        }
+
+        takeDamage(dmg, attackerDir, hx, hy, isBlocked) {
+            this.hp -= dmg; if (this.hp < 0) this.hp = 0;
+            updateBars();
+            
+            spawnHitEffect(hx, hy, dmg, attackerDir, isBlocked);
+            
+            if (isBlocked) {
+                texts.push(new FloatingText(hx, hy - 30, "GUARD", "#7bed9f", 18));
+                this.x += attackerDir * 5; this.sp -= 3; 
+            } else {
+                texts.push(new FloatingText(hx, hy - 30, `-${dmg}`, "#ff4757", 28));
+                this.state = 'hit'; this.frame = 0;
+            }
+            checkWin();
+        }
+
+        draw(ctx) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+            const drawLine = (x1, y1, x2, y2, thickness, col) => {
+                ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+                ctx.lineWidth = thickness; ctx.strokeStyle = col; ctx.stroke();
+            };
+            const drawBone = (x1, y1, x2, y2, isBody=false) => {
+                ctx.shadowBlur = 0; drawLine(x1, y1, x2, y2, 16, '#000'); 
+                ctx.shadowBlur = isBody ? 15 : 8; ctx.shadowColor = this.color;
+                drawLine(x1, y1, x2, y2, 6, isBody ? this.color : '#fff'); 
+            };
+
+            let hX = 0, hY = -90, bTopX = 0, bTopY = -75, bBotX = 0, bBotY = -25;
+            let fLegX = this.dir * 20, fLegY = 0, bLegX = -this.dir * 20, bLegY = 0;
+            let fElbowX = this.dir * 18, fElbowY = -45, fHandX = this.dir * 26, fHandY = -70;
+            let bElbowX = -this.dir * 8, bElbowY = -40, bHandX = this.dir * 12, bHandY = -80;
+
+            if (this.state === 'idle') {
+                hY += Math.sin(Date.now()/120) * 3; bTopY += Math.sin(Date.now()/120) * 1.5;
+            } else if (this.state === 'move') {
+                let stride = Math.sin(this.frame * 0.7) * 22;
+                fLegX = this.dir * 10 + stride; fLegY = -Math.max(0, Math.sin(this.frame*0.7)*10);
+                bLegX = -this.dir * 10 - stride; bLegY = -Math.max(0, -Math.sin(this.frame*0.7)*10);
+                hY += Math.abs(stride) * 0.2;
+            } else if (this.state === 'hit') {
+                hX -= this.dir * 20; hY -= 3; bTopX -= this.dir * 10;
+                fHandX -= this.dir * 10; fHandY += 20; bHandX -= this.dir * 10; bHandY += 20;
+                ctx.filter = 'saturate(180%) brightness(1.1)'; 
+            } else if (this.state === 'block') {
+                fHandX = this.dir * 15; fHandY = -85; fElbowX = this.dir * 12; fElbowY = -55;
+                bHandX = this.dir * 6; bHandY = -85; bElbowX = -this.dir * 2; bElbowY = -55;
+                bTopX -= this.dir * 5; hX -= this.dir * 10;
+            } else if (this.state === 'ducking') {
+                hY += 28; bTopY += 28; bBotY += 12; fHandY += 28; bHandY += 28; fLegX += this.dir*10; bLegX -= this.dir*10;
+            } else if (this.state === 'weaving') {
+                let p = Math.sin((this.frame / 20) * Math.PI);
+                hY += 20 * p; hX += this.dir * 25 * p; bTopY += 20 * p; bTopX += this.dir * 25 * p;
+            } else if (this.state === 'jab') {
+                let p = Math.sin((this.frame / SKILLS.jab.dur) * Math.PI);
+                fHandX += this.dir * 70 * p; fHandY = -75; fElbowX = bTopX + (fHandX - bTopX)/2;
+            } else if (this.state === 'straight') {
+                let p = Math.sin((this.frame / SKILLS.straight.dur) * Math.PI);
+                bHandX += this.dir * 95 * p; bHandY = -75; bElbowX = bTopX + (bHandX - bTopX)/2;
+                bTopX += this.dir * 20 * p; hX += this.dir * 20 * p;
+            } else if (this.state === 'hook') {
+                let p = Math.sin((this.frame / SKILLS.hook.dur) * Math.PI);
+                fHandX += this.dir * 60 * p; fHandY = -75 - 20 * p; fElbowX += this.dir * 50 * p; fElbowY = -85 * p;
+                bTopX += this.dir * 10 * p; hX += this.dir * 15 * p;
+            } else if (this.state === 'uppercut') {
+                let p = Math.sin((this.frame / SKILLS.uppercut.dur) * Math.PI);
+                if (this.frame < SKILLS.uppercut.dur/2) { fHandY += 25 * p; hY += 10*p; } 
+                else { fHandY -= 80 * p; fHandX += this.dir * 50 * p; hY -= 15*p; }
+                fElbowX = bTopX + (fHandX - bTopX)/2 + this.dir*15; fElbowY = fHandY + 15;
+            } else if (this.state === 'bodyblow') {
+                let p = Math.sin((this.frame / SKILLS.bodyblow.dur) * Math.PI);
+                hY += 18; bTopY += 18; bHandX += this.dir * 75 * p; bHandY = -40; bElbowX = bTopX + (bHandX - bTopX)/2;
+            } else if (this.state === 'overhand') {
+                let p = Math.sin((this.frame / SKILLS.overhand.dur) * Math.PI);
+                bHandX += this.dir * 70 * p; bHandY = -125 * Math.sin(p * Math.PI) - 30;
+                if(this.frame > SKILLS.overhand.dur/2) bHandY = -20;
+                bElbowX = bTopX + (bHandX - bTopX)/2; bElbowY = bHandY - 15;
+                bTopX += this.dir * 20 * p; hX += this.dir * 25 * p;
+            } else if (this.state === 'onetwo') {
+                let t = this.frame / SKILLS.onetwo.dur;
+                if (t < 0.4) { 
+                    let p = Math.sin((t / 0.4) * Math.PI); fHandX += this.dir * 70 * p; fHandY = -75;
+                } else { 
+                    let p = Math.sin(((t - 0.4) / 0.6) * Math.PI); bHandX += this.dir * 95 * p; bHandY = -75;
+                    bTopX += this.dir * 20 * p; hX += this.dir * 20 * p;
+                }
+            }
+
+            if (this.isJumping) { fLegY -= 15; bLegY -= 20; bLegX -= this.dir*5; }
+
+            drawBone(bBotX, bBotY, bLegX, bLegY);
+            drawBone(bTopX, bTopY, bElbowX, bElbowY); drawBone(bElbowX, bElbowY, bHandX, bHandY);
+            drawBone(bTopX, bTopY, bBotX, bBotY, true); 
+            
+            ctx.shadowBlur = 15; ctx.shadowColor = this.color;
+            ctx.beginPath(); ctx.arc(hX, hY, 18, 0, Math.PI * 2);
+            ctx.fillStyle = '#111'; ctx.fill();
+            ctx.lineWidth = 4; ctx.strokeStyle = this.color; ctx.stroke();
+
+            drawBone(bBotX, bBotY, fLegX, fLegY);
+            drawBone(bTopX, bTopY, fElbowX, fElbowY); drawBone(fElbowX, fElbowY, fHandX, fHandY);
+
+            let groundOffset = GROUND_Y - this.y;
+            let shadowSize = Math.max(0, 14 - (groundOffset * 0.08));
+            ctx.shadowBlur = 0; ctx.fillStyle = `rgba(0,0,0,${Math.max(0, 0.8 - groundOffset*0.005)})`;
+            ctx.beginPath(); ctx.ellipse(fLegX + this.dir*6, fLegY + groundOffset, shadowSize, shadowSize/2, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(bLegX + this.dir*6, bLegY + groundOffset, shadowSize, shadowSize/2, 0, 0, Math.PI*2); ctx.fill();
+
+            const gloveCol = this.color === '#00d2ff' ? '#ff4757' : '#2ed573';
+            ctx.shadowBlur = 10; ctx.shadowColor = gloveCol;
+            ctx.fillStyle = gloveCol; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+            
+            if (['straight', 'overhand', 'bodyblow', 'onetwo'].includes(this.state)) {
+                ctx.beginPath(); ctx.arc(bHandX - this.dir*8, bHandY, 12, 0, Math.PI*2); 
+                ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fill();
+            }
+            ctx.fillStyle = gloveCol;
+            ctx.beginPath(); ctx.arc(bHandX, bHandY, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(fHandX, fHandY, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+            ctx.restore();
+        }
+    }
+
+    let p1, p2;
+
+    function initGame() {
+        resize();
+        p1 = new Player(cw * 0.25, '#00d2ff', 1, 'p1');
+        p2 = new Player(cw * 0.75, '#f5af19', -1, 'p2');
+        gameActive = true; particles = []; texts = []; shockwaves = []; screenShake = 0; screenFlashAlpha = 0;
+        document.getElementById('win-screen').style.display = 'none';
+        updateBars();
+    }
+
+    function updateBars() {
+        document.getElementById('p1-hp').style.width = p1.hp + '%';
+        document.getElementById('p2-hp').style.width = p2.hp + '%';
+        document.getElementById('p1-sp').style.width = p1.sp + '%';
+        document.getElementById('p2-sp').style.width = p2.sp + '%';
+    }
+
+    function checkWin() {
+        if (p1.hp <= 0 || p2.hp <= 0) {
+            gameActive = false;
+            const msg = document.getElementById('win-text');
+            if (p1.hp <= 0 && p2.hp <= 0) msg.innerHTML = "DOUBLE K.O!<br>무승부";
+            else if (p1.hp <= 0) msg.innerHTML = "PLAYER 2 WIN!";
+            else msg.innerHTML = "PLAYER 1 WIN!";
+            document.getElementById('win-screen').style.display = 'block';
+        }
+    }
+
+    function drawBackground() {
+        ctx.clearRect(0, 0, cw, ch);
+        
+        let grad = ctx.createRadialGradient(cw/2, GROUND_Y-50, 50, cw/2, GROUND_Y-50, cw/1.2);
+        grad.addColorStop(0, 'rgba(60, 60, 90, 0.35)');
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, cw, ch);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)'; ctx.lineWidth = 1;
+        for(let i=0; i<cw; i+=60) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, GROUND_Y); ctx.stroke(); }
+        
+        ctx.shadowBlur = 20; ctx.shadowColor = '#00d2ff'; ctx.strokeStyle = '#00d2ff'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(0, GROUND_Y - 50); ctx.lineTo(cw/2, GROUND_Y - 50); ctx.stroke();
+        
+        ctx.shadowColor = '#f5af19'; ctx.strokeStyle = '#f5af19';
+        ctx.beginPath(); ctx.moveTo(cw/2, GROUND_Y - 50); ctx.lineTo(cw, GROUND_Y - 50); ctx.stroke();
+        
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#09090e'; ctx.fillRect(0, GROUND_Y, cw, ch - GROUND_Y);
+    }
+
+    function gameLoop() {
+        // 👑 히트스톱 조건문이 삭제되어 프레임 딜레이 없이 항상 즉시 실행됩니다.
+        ctx.save();
+        if (screenShake > 0) {
+            ctx.translate((Math.random()-0.5)*screenShake, (Math.random()-0.5)*screenShake);
+            screenShake *= 0.75; 
+            if(screenShake < 0.5) screenShake = 0;
+        }
+        
+        drawBackground();
+        
+        for (let i = shockwaves.length - 1; i >= 0; i--) {
+            shockwaves[i].update(); shockwaves[i].draw(ctx);
+            if (shockwaves[i].alpha <= 0) shockwaves.splice(i, 1);
+        }
+
+        if (p1 && p2) {
+            p1.update(p2); p2.update(p1);
+            p1.draw(ctx); p2.draw(ctx);
+        }
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            particles[i].update(); particles[i].draw(ctx);
+            if (particles[i].life <= 0) particles.splice(i, 1);
+        }
+        for (let i = texts.length - 1; i >= 0; i--) {
+            texts[i].update(); texts[i].draw(ctx);
+            if (texts[i].life <= 0) texts.splice(i, 1);
+        }
+        
+        if (screenFlashAlpha > 0) {
+            ctx.save();
+            ctx.globalAlpha = screenFlashAlpha;
+            ctx.fillStyle = screenFlashColor;
+            ctx.fillRect(0, 0, cw, ch);
+            ctx.restore();
+            screenFlashAlpha -= 0.05; 
+        }
+
+        ctx.restore();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function setupDynamicJoystick(zoneId, joyId, knobId, player) {
+        const zone = document.getElementById(zoneId);
+        const joy = document.getElementById(joyId);
+        const knob = document.getElementById(knobId);
+        let activeId = null, startX, startY;
+
+        zone.addEventListener('pointerdown', (e) => {
+            if (activeId !== null) return;
+            activeId = e.pointerId;
+            const rect = zone.getBoundingClientRect();
+            joy.style.display = 'block';
+            joy.style.left = `${e.clientX - rect.left}px`;
+            joy.style.top = `${e.clientY - rect.top}px`;
+            knob.style.transform = `translate(0px, 0px)`;
+            startX = e.clientX; startY = e.clientY;
+            player.moveX = 0; zone.setPointerCapture(activeId);
+        });
+
+        zone.addEventListener('pointermove', (e) => {
+            if (activeId !== e.pointerId) return;
+            let dx = e.clientX - startX, dy = e.clientY - startY;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            const maxDist = 40; 
+            
+            if (dy < -25 && !player.isJumping) {
+                player.vy = -18; 
+                player.isJumping = true;
+            }
+
+            if (dist > maxDist) { dx = (dx / dist) * maxDist; dy = (dy / dist) * maxDist; }
+            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            if (dx < -15) player.moveX = -1;
+            else if (dx > 15) player.moveX = 1;
+            else player.moveX = 0;
+        });
+
+        const endTouch = (e) => {
+            if (activeId === e.pointerId) { activeId = null; joy.style.display = 'none'; player.moveX = 0; }
+        };
+        zone.addEventListener('pointerup', endTouch); zone.addEventListener('pointercancel', endTouch);
+    }
+
+    function setupButtons(prefix, player) {
+        const skills = ['jab', 'straight', 'hook', 'uppercut', 'bodyblow', 'overhand', 'weaving', 'ducking', 'block', 'onetwo'];
+        skills.forEach(sk => {
+            const btn = document.getElementById(`${prefix}-btn-${sk}`);
+            if(btn) {
+                btn.addEventListener('pointerdown', (e) => {
+                    e.preventDefault(); btn.classList.add('active'); player.attack(sk);
+                });
+                const releaseFunc = () => {
+                    btn.classList.remove('active');
+                    if (sk === 'block') player.releaseBlock();
+                };
+                btn.addEventListener('pointerup', releaseFunc);
+                btn.addEventListener('pointercancel', releaseFunc);
+                btn.addEventListener('pointerleave', releaseFunc);
+            }
+        });
+    }
+
+    initGame();
+    setupDynamicJoystick('p1-joy-zone', 'p1-joy', 'p1-knob', p1);
+    setupDynamicJoystick('p2-joy-zone', 'p2-joy', 'p2-knob', p2);
+    setupButtons('p1', p1); setupButtons('p2', p2);
+    gameLoop();
+</script>
+</body>
+</html>
