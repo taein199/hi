@@ -244,7 +244,36 @@
 <script>
     const bgm = new Audio('music.mp3'); bgm.loop = true;
     const gachaAudio = new Audio('random.mp3');
-    window.addEventListener('pointerdown', () => { if(bgm.paused && gameActive) bgm.play().catch(e=>{}); }, { once: true });
+    
+    let bgmFailed = false;
+    bgm.addEventListener('canplay', () => console.log('BGM ready'));
+    bgm.addEventListener('error', (e) => { 
+        console.error('BGM load error:', e.target.error);
+        bgmFailed = true;
+    });
+    gachaAudio.addEventListener('error', (e) => console.error('Gacha audio load error:', e.target.error));
+    
+    window.addEventListener('pointerdown', () => { 
+        if(gameActive) {
+            if (!bgmFailed) {
+                bgm.volume = 1.0;
+                if (bgm.paused) bgm.play().catch(e => { 
+                    console.error('BGM play error:', e);
+                    bgmFailed = true;
+                    // Fallback: play tone with Web Audio API
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.frequency.value = 150; osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 10);
+                    osc.start(audioCtx.currentTime);
+                    osc.stop(audioCtx.currentTime + 10);
+                });
+            }
+        }
+    }, { once: true });
 
     const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
     let cw, ch, GROUND_Y;
