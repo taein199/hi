@@ -106,13 +106,39 @@
         }
         .item-announce.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
-        .joystick-zone { position: absolute; bottom: 0; width: 35%; height: 50%; pointer-events: auto; z-index: 20; touch-action: none; }
+            .joystick-zone { position: absolute; bottom: 0; width: 35%; height: 50%; pointer-events: auto; z-index: 20; touch-action: none; padding: 18px; }
         #p1-joy-zone { left: 0; } #p2-joy-zone { right: 0; }
         .dynamic-joy { position: absolute; width: 120px; height: 120px; background: rgba(255, 255, 255, 0.05); border-radius: 50%; border: 2px solid rgba(0, 255, 255, 0.3); display: none; transform: translate(-50%, -50%); pointer-events: none; }
         .dynamic-knob { position: absolute; top: 30px; left: 30px; width: 60px; height: 60px; background: rgba(255, 255, 255, 0.9); border-radius: 50%; pointer-events: none; }
 
-        .skill-panel { position: absolute; bottom: 15px; width: 180px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; pointer-events: auto; z-index: 30; touch-action: none; }
+        .skill-panel { position: absolute; bottom: 100px; width: 180px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; pointer-events: auto; z-index: 30; touch-action: none; }
         #p1-skills { left: 15px; } #p2-skills { right: 15px; direction: rtl; } 
+
+        @media (max-width: 900px) {
+            #settings-panel { position: absolute; top: 12px; left: 12px; right: 12px; width: auto; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+            #settings-panel > div { width: 100%; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+            #settings-panel label, #settings-panel select, #settings-panel input, #settings-panel button { font-size: 12px; }
+            #settings-panel input[type=range] { width: 100px; }
+            #settings-panel button.item-gacha-btn { padding: 6px 10px; font-size: 11px; }
+            .item-system-p1, .item-system-p2 { top: 105px; }
+            .item-system-p1 { left: 12px; }
+            .item-system-p2 { right: 12px; }
+            .ult-tracker { font-size: 10px; top: 85px; }
+            .skill-panel { width: 46%; bottom: 120px; }
+            .skill-btn { height: 42px; font-size: 10px; }
+            .btn-wide { grid-column: span 3; height: 34px; font-size: 11px; }
+            .bar-container { width: 44%; }
+            #p1-hp-box, #p1-sp-box { left: 12px; }
+            #p2-hp-box, #p2-sp-box { right: 12px; }
+            #p1-ult-gauge, #p2-ult-gauge { height: 10px; }
+        }
+
+        @media (max-width: 600px) {
+            .skill-panel { width: 48%; bottom: 130px; }
+            .joystick-zone { width: 40%; height: 46%; }
+            .item-system-p1, .item-system-p2 { top: 100px; }
+            .ultimate-btn { font-size: 13px; padding: 8px 18px; }
+        }
 
         .skill-btn {
             position: relative; background: rgba(20, 20, 30, 0.85); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;
@@ -144,7 +170,7 @@
     <canvas id="gameCanvas"></canvas>
     <div id="smoke-overlay"></div>
     
-    <div id="grass-overlay-text" class="permanent-grass-text">i am grasssssssssssssss!</div>
+    <div id="grass-overlay-text" class="permanent-grass-text">i am grasssssssss!</div>
     
     <div class="ui-layer">
         <div class="bar-container hp-box" id="p1-hp-box"><div id="p1-hp" class="bar"></div></div>
@@ -160,18 +186,15 @@
 
     <!-- Settings panel -->
     <div id="settings-panel" style="position:absolute; top:12px; right:15px; z-index:120; color:#fff; pointer-events:auto;">
-        <div style="display:flex; gap:8px; align-items:center;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <label style="font-size:12px;">SFX</label>
             <input id="sfx-toggle" type="checkbox" checked />
             <label style="font-size:12px;">Vol</label>
             <input id="sfx-vol" type="range" min="0" max="1" step="0.05" value="1" />
             <button id="perf-toggle" class="item-gacha-btn" onclick="togglePerformance()">퍼포먼스: 일반</button>
             <button id="ai-toggle" class="item-gacha-btn" onclick="toggleAI()">AI: OFF</button>
-            <button id="replay-btn" class="item-gacha-btn" onclick="startReplayPlayback()">리플레이 재생</button>
-            <button id="slow-btn" class="item-gacha-btn" onclick="toggleSlowMotion()">슬로모션 OFF</button>
-            <button id="controls-btn" class="item-gacha-btn" onclick="openControlsModal()">컨트롤</button>
         </div>
-        <div style="margin-top:6px; display:flex; gap:8px; align-items:center;">
+        <div style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <label style="font-size:12px;">비주얼</label>
             <select id="visual-preset" onchange="applyVisualPreset(this.value)">
                 <option value="default">기본</option>
@@ -288,11 +311,16 @@
     let devGrassParticles = [];
     let devFistGhosts = [];    
     let devExtras = []; // 추가적인 개발자 전용 효과(30개 이상 생성)
+    let decoys = []; // 분신(아이템 효과용 임시 클론)
 
     let isDevMode = false;
     let ultimateCinematic = { active: false, attacker: null, defender: null, phase: 0, timer: 0, isDev: false };
 
-    const ITEMS_LIST = ["핵폭탄", "총", "섬광탄", "연막탄", "바나나 껍질", "자석", "회복약"];
+    const ITEMS_LIST = [
+        "핵폭탄", "총", "섬광탄", "연막탄", "바나나 껍질", "자석", "회복약",
+        "파워 글러브", "쉴드 배터리", "부스트 스프린트", "타임 슬로우", "리버스 트랩",
+        "힐 팩", "에너지 드레인", "카운터 토큰", "분신", "프로보크", "패럴라이즈 글레이브", "라이트 카메라"
+    ];
     let playerItems = { p1: null, p2: null };
     let cooldowns = { p1: {}, p2: {} };
 
@@ -314,6 +342,199 @@
         'ducking': { dur: 16, evade: 'high', sp: 10 },
         'block': { dur: 9999, reduce: 0.3, sp: 0 }
     };
+
+    const NORMAL_ULTIMATE_MOVES = [
+        '페이크 디렉션', '숄더롤 & 리드 라이트', '피커부 시프트',
+        '매직 콤비네이션', '스웨이 & 카운터', '어퍼컷 연타', '체크 훅',
+        '데스브레이크 서지', '천공절단 섬광', '블레이징 사이클론', '이터널 스톰', '섀도우 레기온',
+        '드래곤 피스트 임팩트', '아카식 라이트닝', '마그넘 크래시', '인페르노 슬래쉬', '스펙터럴 레이지',
+        '아크틱 블리츠', '트와일라잇 펀치', '레이지 오브 퓨리', '사일런트 볼트', '워킹 디바이드',
+        '미라클 크러시', '오로라 블랙홀', '인피니티 러시', '스틸하트 스매시', '에어로 나이트',
+        '사이버 초승달', '판테라 스트라이크', '제이드 토네이도', '릴렉트 와이퍼', '오메가 드라이브',
+        '네온 블레이드 캐논', '아스트랄 파멸', '파이어 하울', '스펠 브레이커', '판타즘 크래시',
+        '제네시스 플레어', '나이트메어 코어', '에너지 퓨전 샷', '실드 브레이커', '오버트론 임팩트',
+        '매그넘 레조넌스', '크림슨 타이드', '소닉 드래프트', '블러드 문 슬래쉬', '팬텀 윙 스매시',
+        '하모닉 크러쉬', '디멘션 러시', '오션폴 엑시드', '썬더 스파이크', '네뷸라 샤워',
+        '아레스 콜라이더', '루나틱 쉐도우', '임팩트 베놈', '에너지 스피어 매트릭스', '라이트닝 서지',
+        '뱅가드 톱스핀', '라이징 서펜트', '루미너스 퓨리'
+    ];
+
+    function getRandomUltimateMove() {
+        return NORMAL_ULTIMATE_MOVES[Math.floor(Math.random() * NORMAL_ULTIMATE_MOVES.length)];
+    }
+
+    const ULTIMATE_MOVE_STYLES = [
+        { match: ['매직', '콤비네이션'], titleColor: '#ffd44d', particleColor: '#fff176', shockColor: '#ff8c00', ringColor: '#ffe082', suffix: 'GUARD BREAK' },
+        { match: ['스웨이', '카운터'], titleColor: '#8cffed', particleColor: '#46f4ff', shockColor: '#00d2ff', ringColor: '#a6ffff', suffix: 'COUNTER STRIKE' },
+        { match: ['어퍼컷'], titleColor: '#ff5f9d', particleColor: '#ff8fb3', shockColor: '#ff2b6a', ringColor: '#ffb3c0', suffix: 'UPPERCUT' },
+        { match: ['체크', '훅'], titleColor: '#7aff95', particleColor: '#67ffae', shockColor: '#12ff76', ringColor: '#baffc7', suffix: 'CHECK HOOK' },
+        { match: ['데스', '브레이크', '임팩트', '크래시', '레이지'], titleColor: '#ff4f6b', particleColor: '#ff8f00', shockColor: '#ff0055', ringColor: '#ffdd55', suffix: 'FLARE' },
+        { match: ['천공', '에어로', '아스트랄', '루미너스', '오로라'], titleColor: '#9df4ff', particleColor: '#6be6ff', shockColor: '#00d2ff', ringColor: '#77ffea', suffix: 'AURA' },
+        { match: ['블레이징', '파이어', '인페르노', '크림슨', '팬텀'], titleColor: '#ffaf40', particleColor: '#ff3d00', shockColor: '#ff0044', ringColor: '#ffd47a', suffix: 'BLAZE' },
+        { match: ['라이트닝', '볼트', '서지', '썬더', '네온'], titleColor: '#7ad2ff', particleColor: '#3eefdd', shockColor: '#0be8ff', ringColor: '#aaffff', suffix: 'FLASH' },
+        { match: ['토네이도', '사이클론', '쉐도우', '섀도우', '와이퍼'], titleColor: '#c692ff', particleColor: '#8b5cf6', shockColor: '#bb3bff', ringColor: '#d89cff', suffix: 'SPIRAL' },
+        { match: ['오메가', '인피니티', '아크틱', '네뷸라', '디멘션'], titleColor: '#8cffd4', particleColor: '#54ffca', shockColor: '#2affc7', ringColor: '#baffdf', suffix: 'NOVA' },
+        { match: ['마그넘', '매그넘', '프리즘', '크리스탈', '팬텀'], titleColor: '#ff6bf0', particleColor: '#ff3af8', shockColor: '#ff46c4', ringColor: '#ff9bf4', suffix: 'CRUSH' },
+        { match: ['제이드', '아카식', '제네시스', '네온'], titleColor: '#7cf4ff', particleColor: '#7dfffb', shockColor: '#4dfff6', ringColor: '#b7fffb', suffix: 'SHOCK' }
+    ];
+
+    function getUltimateMoveStyle(name) {
+        const lower = name.toLowerCase();
+        for (const style of ULTIMATE_MOVE_STYLES) {
+            if (style.match.some(keyword => lower.includes(keyword))) return style;
+        }
+        return ULTIMATE_MOVE_STYLES[name.length % ULTIMATE_MOVE_STYLES.length];
+    }
+
+    function applyUltimateMoveHit(name, attacker, defender, idx) {
+        if (!attacker || !defender) return;
+        let dmg = 6 + (idx % 4) * 2;
+        let label = 'HIT!';
+        let color = '#ffdd55';
+        let hx = defender.x; let hy = defender.y - 60;
+
+        if (name.includes('매직 콤비네이션')) {
+            dmg += 8; label = 'GUARD CRUSH'; color = '#ffb142';
+            shockwaves.push(new Shockwave(hx - 20, hy, '#ff8c00', 120));
+            shockwaves.push(new Shockwave(hx + 20, hy, '#ff8c00', 120));
+            for (let i = 0; i < 20; i++) particles.push(new Particle(hx, hy, '#ffd32a', true, attacker.dir, (Math.random()-0.5)*14, (Math.random()-0.5)*14));
+        } else if (name.includes('스웨이') || name.includes('카운터')) {
+            dmg += 10; label = 'COUNTER!'; color = '#7ef9ff';
+            shockwaves.push(new Shockwave(hx + attacker.dir * 30, hy, '#00d2ff', 140));
+            for (let i = 0; i < 16; i++) particles.push(new Particle(hx, hy, '#7be9ff', true, attacker.dir, (Math.random()-0.5)*12, (Math.random()-0.5)*10));
+        } else if (name.includes('어퍼컷')) {
+            dmg += 12; label = 'UPPERCUT!'; color = '#ff79c6';
+            shockwaves.push(new Shockwave(hx, hy + 20, '#ff2b89', 130));
+            for (let i = 0; i < 22; i++) particles.push(new Particle(hx, hy, '#ff83d0', true, attacker.dir, (Math.random()-0.5)*10, -Math.random()*14));
+        } else if (name.includes('체크 훅')) {
+            dmg += 10; label = 'CHECK HOOK'; color = '#7dff8f';
+            shockwaves.push(new Shockwave(hx, hy, '#14ff88', 120));
+            particles.push(new Particle(hx + attacker.dir * 15, hy - 20, '#a8ffbe', false, attacker.dir));
+        } else {
+            const style = getUltimateMoveStyle(name);
+            shockwaves.push(new Shockwave(hx, hy, style.shockColor, 90 + (idx % 3) * 10));
+        }
+
+        defender.takeDamage(dmg, attacker.dir, hx, hy, false);
+        texts.push(new FloatingText(hx, hy - 40, label, color, 22, 0.02));
+    }
+
+    function spawnUltimateMoveVisual(name, x, y, idx, attacker, defender) {
+        const style = getUltimateMoveStyle(name);
+        const power = 14 + (idx % 6) * 3;
+        const count = 10 + (idx % 5) * 4;
+
+        const special = name.includes('매직 콤비네이션') || name.includes('스웨이') || name.includes('어퍼컷') || name.includes('체크 훅')
+            || name.includes('페이크') || name.includes('숄더롤') || name.includes('피커부');
+
+        // time-sequenced motion + hits for cinematic feeling
+        if (name.includes('매직 콤비네이션')) {
+            // Jab -> Body Hook -> Face Hook
+            if (attacker && defender) {
+                attacker.state = 'jab'; attacker.frame = 0;
+                setTimeout(() => { applyUltimateMoveHit('매직 콤비네이션', attacker, defender, idx); attacker.state = 'bodyblow'; attacker.frame = 0; }, 90);
+                setTimeout(() => { applyUltimateMoveHit('매직 콤비네이션', attacker, defender, idx+1); attacker.state = 'hook'; attacker.frame = 0; attacker.x += attacker.dir * 12; }, 220);
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; attacker.x = Math.max(40, Math.min(cw-40, attacker.x)); }, 520);
+            }
+            texts.push(new FloatingText(x, y - 40, '상단 ➜ 하단 ➜ 상단', '#fff176', 20, 0.025));
+        } else if (name.includes('스웨이') || name.includes('카운터')) {
+            // Sway evade then straight -> left hook
+            if (attacker && defender) {
+                attacker.state = 'weaving'; attacker.frame = 0;
+                setTimeout(() => { attacker.state = 'straight'; attacker.frame = 0; applyUltimateMoveHit(name, attacker, defender, idx); attacker.x += attacker.dir * 18; }, 140);
+                setTimeout(() => { attacker.state = 'hook'; attacker.frame = 0; applyUltimateMoveHit(name, attacker, defender, idx+1); }, 320);
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; }, 560);
+            }
+            texts.push(new FloatingText(x, y - 40, 'SWAY & COUNTER', '#8df6ff', 22, 0.024));
+        } else if (name.includes('어퍼컷')) {
+            // Rapid uppercuts with weave
+            if (attacker && defender) {
+                for (let s = 0; s < 3; s++) {
+                    setTimeout(((s) => () => { attacker.state = 'uppercut'; attacker.frame = 0; applyUltimateMoveHit(name, attacker, defender, idx + s); })(s), s * 120);
+                }
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; }, 420);
+            }
+            texts.push(new FloatingText(x, y - 40, 'UPPERCUT RUSH', '#ff5f9d', 22, 0.024));
+        } else if (name.includes('체크 훅')) {
+            // Step-turn hook
+            if (attacker && defender) {
+                attacker.state = 'hook'; attacker.frame = 0;
+                setTimeout(() => { applyUltimateMoveHit(name, attacker, defender, idx); attacker.x += attacker.dir * 28; }, 120);
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; }, 360);
+            }
+            texts.push(new FloatingText(x, y - 40, 'CHECK HOOK', '#7aff95', 22, 0.024));
+        }
+
+        // New stylistic moves requested
+        if (name.includes('페이크') || name.includes('페이크 디렉션')) {
+            // Canelo-style fake body -> same hand overhand
+            texts.push(new FloatingText(x, y - 40, 'FAKE DIRECTION', '#ffd28a', 20, 0.025));
+            if (attacker && defender) {
+                attacker.state = 'jab'; attacker.frame = 0;
+                setTimeout(() => {
+                    attacker.state = 'bodyblow'; attacker.frame = 0; attacker.y += 14;
+                    applyUltimateMoveHit(name, attacker, defender, idx);
+                }, 100);
+                setTimeout(() => {
+                    attacker.state = 'overhand'; attacker.frame = 0; attacker.y -= 48; attacker.x += attacker.dir * 20;
+                    applyUltimateMoveHit(name, attacker, defender, idx+1);
+                }, 300);
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; attacker.y = GROUND_Y; }, 600);
+            }
+        }
+
+        if (name.includes('숄더롤') || name.includes('리드 라이트')) {
+            // Mayweather-style shoulder roll -> lead right
+            texts.push(new FloatingText(x, y - 40, 'SHOULDER ROLL & LEAD', '#bfefff', 20, 0.025));
+            if (attacker && defender) {
+                attacker.state = 'weaving'; attacker.frame = 0;
+                setTimeout(() => { attacker.state = 'straight'; attacker.frame = 0; applyUltimateMoveHit(name, attacker, defender, idx); attacker.x += attacker.dir * 14; }, 140);
+                setTimeout(() => { attacker.state = 'hook'; attacker.frame = 0; applyUltimateMoveHit(name, attacker, defender, idx+1); }, 300);
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; }, 520);
+            }
+        }
+
+        if (name.includes('피커부') || name.includes('피커부 시프트')) {
+            // Tyson-style peekaboo shift -> body counter
+            texts.push(new FloatingText(x, y - 40, 'PEEKABOO SHIFT', '#ff9f9f', 20, 0.025));
+            if (attacker && defender) {
+                // quick duck + lateral step behind opponent flank
+                setTimeout(() => { attacker.state = 'weaving'; attacker.frame = 0; attacker.y += 18; }, 40);
+                setTimeout(() => {
+                    const flankX = defender.x - attacker.dir * 80; // appear to opponent's blind spot
+                    attacker.x = flankX;
+                    attacker.y = GROUND_Y;
+                    attacker.state = 'bodyblow'; attacker.frame = 0;
+                    applyUltimateMoveHit(name, attacker, defender, idx);
+                }, 180);
+                setTimeout(() => { attacker.state = 'idle'; attacker.frame = 0; }, 520);
+            }
+        }
+
+        // generic particles and final labels
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * power + 2;
+            particles.push(new Particle(
+                x + Math.cos(angle) * 20,
+                y + Math.sin(angle) * 20,
+                style.particleColor,
+                true,
+                1,
+                Math.cos(angle) * speed,
+                Math.sin(angle) * speed,
+                2 + Math.random() * 3
+            ));
+        }
+
+        if (!special) {
+            shockwaves.push(new Shockwave(x + (Math.random() - 0.5) * 120, y + (Math.random() - 0.5) * 60, style.shockColor, 110 + power * 2));
+            texts.push(new FloatingText(x, y - 30 - (idx % 5) * 20, `◆ ${name} ◆`, style.titleColor, 24, 0.02));
+            texts.push(new FloatingText(x, y + 10 + (idx % 4) * 20, style.suffix, style.ringColor, 18, 0.026));
+        } else {
+            texts.push(new FloatingText(x, y - 50, `◆ ${name} ◆`, style.titleColor, 26, 0.02));
+        }
+    }
 
     function resize() {
         cw = canvas.width = window.innerWidth; ch = canvas.height = window.innerHeight;
@@ -430,7 +651,7 @@
             } else if (this.state !== 'idle' && this.state !== 'move' && this.state !== 'block') {
                 this.frame++;
                 const skill = SKILLS[this.state];
-                if (skill && skill.hitFrames) {
+                    if (skill && skill.hitFrames) {
                     skill.hitFrames.forEach((hitFrame, idx) => {
                         if (this.frame === hitFrame && !this.hitHits.includes(idx)) {
                             this.hitHits.push(idx);
@@ -439,7 +660,7 @@
                                 if (opponent.state === 'ducking' || opponent.state === 'weaving') {
                                     texts.push(new FloatingText(opponent.x, opponent.y - 110, "MISS", "#a4b0be", 22));
                                 } else {
-                                    let finalDmg = skill.dmg; let isBlocked = (opponent.state === 'block');
+                                    let finalDmg = Math.floor(skill.dmg * (this.attackMultiplier || 1)); let isBlocked = (opponent.state === 'block');
                                     if (isBlocked) finalDmg = Math.floor(finalDmg * SKILLS.block.reduce);
                                     
                                     if (!isBlocked && STRIKE_ATTACKS.includes(this.state)) {
@@ -447,6 +668,8 @@
                                         checkUltimateAvailability(this.prefix);
                                     }
                                     opponent.takeDamage(finalDmg, this.dir, opponent.x, opponent.y - (skill.type==='high'?85:40), isBlocked);
+                                    // if attackMultiplier was a one-time buff, reset after using it
+                                    if (this.attackMultiplier && this.attackMultiplier > 1) this.attackMultiplier = 1;
                                 }
                             }
                         }
@@ -458,8 +681,10 @@
             }
         }
         takeDamage(dmg, attackerDir, hx, hy, isBlocked) {
-            if (isDevMode && this.prefix === 'p1') return; 
-            this.hp = Math.max(0, this.hp - dmg); updateBars();
+                if (isDevMode && this.prefix === 'p1') return; 
+                // shield battery reduces damage substantially
+                if (this.shieldActive) { dmg = Math.floor(dmg * 0.35); this.shieldActive = false; texts.push(new FloatingText(this.x, this.y - 80, 'SHIELD', '#b7ffda', 16)); }
+                this.hp = Math.max(0, this.hp - dmg); updateBars();
             screenShake = Math.min(12, dmg * 0.9);
             shockwaves.push(new Shockwave(hx, hy, isBlocked ? '#2ed573' : (dmg >= 12 ? '#ff0055' : '#ffeb3b'), isBlocked ? 50 : 90));
             
@@ -611,25 +836,26 @@
         const item = playerItems[playerPrefix];
         const user = playerPrefix === 'p1' ? p1 : p2; const enemy = playerPrefix === 'p1' ? p2 : p1;
 
+        // 기본 기존 아이템 효과들 유지하면서 확장
         if (item === "핵폭탄") {
             screenShake = 35; screenFlashAlpha = 0.6; screenFlashColor = '#ff3300';
             shockwaves.push(new Shockwave(cw/2, GROUND_Y, '#ff3300', 400));
             enemy.takeDamage(40, user.dir, enemy.x, enemy.y - 50, false);
-        } 
+        }
         else if (item === "총") {
             screenShake = 12; shockwaves.push(new Shockwave(user.x + user.dir*50, user.y - 75, '#ffff00', 45));
             for(let i=0; i<15; i++) particles.push(new Particle(user.x, user.y-75, '#ffeb3b', true, user.dir * 2));
             enemy.takeDamage(22, user.dir, enemy.x, enemy.y - 75, enemy.state === 'block');
-        } 
+        }
         else if (item === "섬광탄") {
             screenFlashAlpha = 0.95; screenFlashColor = '#ffffff';
             const origSpeed = enemy.speed; enemy.speed = 0;
             texts.push(new FloatingText(enemy.x, enemy.y - 120, "STUNNED!", "#ffffff", 24));
             setTimeout(() => { enemy.speed = origSpeed; }, 3000);
-        } 
+        }
         else if (item === "연막탄") {
             const smoke = document.getElementById('smoke-overlay'); smoke.style.display = 'block';
-            setTimeout(() => { smoke.style.display = 'none'; }, 4000);
+            setTimeout(() => { smoke.style.display = 'none'; }, 1000);
         }
         else if (item === "바나나 껍질") {
             bananas.push({ x: user.x + user.dir * 70 });
@@ -641,10 +867,69 @@
             enemy.x = user.x + user.dir * 60;
             texts.push(new FloatingText(enemy.x, enemy.y - 120, "가치인력!!", "#00ffea", 22));
         }
-        else if (item === "회복약") {
-            user.hp = Math.min(100, user.hp + 35); updateBars();
-            for(let i=0; i<15; i++) particles.push(new Particle(user.x, user.y - 50, '#00ff88', false, (Math.random()-0.5)*4, (Math.random()-1)*6));
-            texts.push(new FloatingText(user.x, user.y - 120, "+35 HEAL!", "#00ff88", 24));
+        else if (item === "회복약" || item === "힐 팩") {
+            const healAmount = item === '힐 팩' ? 50 : 35;
+            user.hp = Math.min(100, user.hp + healAmount); updateBars();
+            for(let i=0; i<18; i++) particles.push(new Particle(user.x, user.y - 50, '#00ff88', false, (Math.random()-0.5)*4, (Math.random()-1)*6));
+            texts.push(new FloatingText(user.x, user.y - 120, `+${healAmount} HEAL!`, "#00ff88", 24));
+        }
+
+        // 새 아이템들
+        else if (item === "파워 글러브") {
+            user.attackMultiplier = 1.6;
+            texts.push(new FloatingText(user.x, user.y - 120, "POWER UP!", "#ff6b81", 26));
+            setTimeout(() => { if (user) user.attackMultiplier = 1; }, 8000);
+        }
+        else if (item === "쉴드 배터리") {
+            user.shieldActive = true;
+            texts.push(new FloatingText(user.x, user.y - 120, "SHIELD ON", "#7bed9f", 22));
+        }
+        else if (item === "부스트 스프린트") {
+            screenShake = 8; for(let i=0;i<12;i++) particles.push(new Particle(user.x - user.dir*10, user.y - 20, '#b2bec3', true, user.dir*8 + (Math.random()-0.5)*2));
+            user.x += user.dir * 140; user.x = Math.max(80, Math.min(cw-80, user.x));
+            texts.push(new FloatingText(user.x, user.y - 120, "SPEED BURST", "#74b9ff", 20));
+        }
+        else if (item === "타임 슬로우") {
+            const target = enemy; const origSpeed = target.speed; target.speed = Math.max(1, Math.floor(target.speed * 0.45));
+            texts.push(new FloatingText(user.x, user.y - 120, "TIME SLOWED", "#a29bfe", 24));
+            setTimeout(() => { if (target) target.speed = origSpeed; }, 2200);
+        }
+        else if (item === "리버스 트랩") {
+            enemy.trapped = true; texts.push(new FloatingText(enemy.x, enemy.y - 120, "TRAPPED!", "#ffdd59", 22));
+            for(let i=0;i<10;i++) particles.push(new Particle(enemy.x, enemy.y - 30, '#ffdd59', true, (Math.random()-0.5)*3));
+            setTimeout(() => { if (enemy) enemy.trapped = false; }, 2500);
+        }
+        else if (item === "에너지 드레인") {
+            const drained = Math.min(40, enemy.sp);
+            enemy.sp = Math.max(0, enemy.sp - drained); user.sp = Math.min(100, user.sp + drained);
+            updateBars(); texts.push(new FloatingText(user.x, user.y - 120, `SP DRAIN ${drained}`, "#ffd32a", 20));
+        }
+        else if (item === "카운터 토큰") {
+            user.attackMultiplier = 1.9; // next successful attack will be powerful
+            texts.push(new FloatingText(user.x, user.y - 120, "COUNTER READY", "#f78fb3", 20));
+            // reset after a while if unused
+            setTimeout(() => { if (user) user.attackMultiplier = Math.min(1, user.attackMultiplier || 1); }, 9000);
+        }
+        else if (item === "분신") {
+            // spawn 3 decoys around player for visual distraction
+            for (let i=0;i<3;i++) {
+                decoys.push({ x: user.x + (i-1) * 60 * -user.dir, y: user.y, color: user.color, alpha: 0.95, life: 45 + i*6 });
+            }
+            texts.push(new FloatingText(user.x, user.y - 120, "DECOYS!", "#dfe6e9", 22));
+        }
+        else if (item === "프로보크") {
+            enemy.isProvoked = true; texts.push(new FloatingText(enemy.x, enemy.y - 120, "PROVOKED", "#ff4757", 20));
+            setTimeout(() => { if (enemy) enemy.isProvoked = false; }, 4000);
+        }
+        else if (item === "패럴라이즈 글레이브") {
+            enemy.trapped = true; texts.push(new FloatingText(enemy.x, enemy.y - 120, "PARALYZED", "#70a1ff", 22));
+            setTimeout(() => { if (enemy) enemy.trapped = false; }, 3500);
+        }
+        else if (item === "라이트 카메라") {
+            // briefly highlight user and spawn camera flash particles
+            screenFlashAlpha = 0.45; screenFlashColor = '#fff7d6';
+            for(let i=0;i<18;i++) particles.push(new Particle(user.x + (Math.random()-0.5)*40, user.y - 40, '#fff7d6', true, (Math.random()-0.5)*6));
+            texts.push(new FloatingText(user.x, user.y - 120, "PHOTO!", "#fff7d6", 20));
         }
 
         playerItems[playerPrefix] = null;
@@ -663,7 +948,11 @@
         ultimateCinematic.defender = defender;
         ultimateCinematic.phase = 1;
         ultimateCinematic.timer = 0;
-        ultimateCinematic.isDev = (prefix === 'p1' && isDevMode); 
+        ultimateCinematic.isDev = (prefix === 'p1' && isDevMode);
+        ultimateCinematic.ultimateMoves = [...NORMAL_ULTIMATE_MOVES];
+        ultimateCinematic.currentUltimateIndex = 0;
+        ultimateCinematic.ultimatePulse = 0;
+        ultimateCinematic.playedNormalFromDev = false;
     }
 
     function processUltimateCinematic() {
@@ -688,7 +977,9 @@
                     attacker.x = cw/2 - attacker.dir * 250;
                     defender.x = cw/2 + attacker.dir * 180;
                     attacker.y = GROUND_Y - 140; defender.y = GROUND_Y;
-                    texts.push(new FloatingText(cw/2, ch/2 - 80, "⚡ PERFECT FUSION: TRUE CATACLYSM ⚡", "#00ffea", 36, 0.015));
+                    ultimateCinematic.currentUltimateIndex = 0;
+                    texts.push(new FloatingText(cw/2, ch/2 - 120, "⚡ PERFECT FUSION: TRUE CATACLYSM ⚡", "#00ffea", 36, 0.015));
+                    texts.push(new FloatingText(cw/2, ch/2 - 80, "ALL 50 MOVES INITIATED", "#ffcc00", 26, 0.02));
 
                     for (let i = 0; i < 30; i++) {
                         devSpaceElements.push({
@@ -702,13 +993,20 @@
                     }
                 }
 
+                if (t % 6 === 0 && ultimateCinematic.currentUltimateIndex < ultimateCinematic.ultimateMoves.length) {
+                    const idx = ultimateCinematic.currentUltimateIndex;
+                    const name = ultimateCinematic.ultimateMoves[ultimateCinematic.currentUltimateIndex++];
+                    spawnUltimateMoveVisual(name, cw/2, ch/2, idx, attacker, defender);
+                    screenShake = 16 + (idx % 5) * 4;
+                }
+
                 devSpaceElements.forEach(el => {
                     el.angle += el.rotSpeed;
                     el.x += Math.cos(el.angle) * 5; el.y += Math.sin(el.angle) * 5;
                     el.radius = Math.max(0, el.radius - 0.2);
                 });
 
-                if (t > 60) { ultimateCinematic.phase = 2; ultimateCinematic.timer = 0; }
+                if (t > 6 * ultimateCinematic.ultimateMoves.length || t > 220) { ultimateCinematic.phase = 2; ultimateCinematic.timer = 0; }
             }
             // [Phase 2] 기본 필살기의 핵심인 '연속 초고속 난무 콤보' 구현 (기본 베이스 무조건 유지)
             else if (phase === 2) {
@@ -851,11 +1149,24 @@
                 }
             }
             else if (phase === 7) {
-                if (t > 90) { 
-                    ultimateCinematic.active = false; 
-                    attacker.y = GROUND_Y; defender.y = GROUND_Y;
-                    devSpaceElements = []; devExtras = [];
-                    checkWin(); 
+                if (t > 90) {
+                    // after dev cinematic, chain into normal ultimate sequence once
+                    if (!ultimateCinematic.playedNormalFromDev) {
+                        ultimateCinematic.playedNormalFromDev = true;
+                        ultimateCinematic.phase = 1;
+                        ultimateCinematic.timer = 0;
+                        ultimateCinematic.isDev = false;
+                        ultimateCinematic.ultimateMoves = [...NORMAL_ULTIMATE_MOVES];
+                        ultimateCinematic.currentUltimateIndex = 0;
+                        // reset attacker/defender positions for normal ult
+                        attacker.y = GROUND_Y; defender.y = GROUND_Y;
+                        devSpaceElements = []; devExtras = [];
+                    } else {
+                        ultimateCinematic.active = false;
+                        attacker.y = GROUND_Y; defender.y = GROUND_Y;
+                        devSpaceElements = []; devExtras = [];
+                        checkWin();
+                    }
                 }
             }
         } 
@@ -865,9 +1176,18 @@
                 screenFlashAlpha = 0.6; screenFlashColor = '#ff2a00';
                 attacker.x = cw/2 - attacker.dir * 110; defender.x = cw/2 + attacker.dir * 110;
                 if (t === 1) {
-                    texts.push(new FloatingText(cw/2, ch/2 - 60, "⚡ 필살기 ⚡", "#ff0055", 38, 0.02));
+                    texts.push(new FloatingText(cw/2, ch/2 - 100, `⚡ ALL 50 ULTIMATE MOVES ⚡`, "#ff0055", 38, 0.02));
+                    texts.push(new FloatingText(cw/2, ch/2 - 60, 'ULTIMATE TECHNIQUE UNLEASHED', "#ffd32a", 20, 0.022));
                 }
-                if (t > 45) { ultimateCinematic.phase = 2; ultimateCinematic.timer = 0; }
+
+                if (t % 6 === 0 && ultimateCinematic.currentUltimateIndex < ultimateCinematic.ultimateMoves.length) {
+                    const idx = ultimateCinematic.currentUltimateIndex;
+                    const name = ultimateCinematic.ultimateMoves[ultimateCinematic.currentUltimateIndex++];
+                    spawnUltimateMoveVisual(name, cw/2, ch/2 + 10, idx, attacker, defender);
+                    screenShake = 12 + (idx % 4) * 3;
+                }
+
+                if (t > 6 * ultimateCinematic.ultimateMoves.length || t > 220) { ultimateCinematic.phase = 2; ultimateCinematic.timer = 0; }
             }
             else if (phase === 2) {
                 if (t % 4 === 0) {
@@ -1060,6 +1380,12 @@
         drawDevSpecialCanvasEffects();
 
         for (let i = shockwaves.length - 1; i >= 0; i--) { shockwaves[i].update(); shockwaves[i].draw(ctx); if (shockwaves[i].alpha <= 0) shockwaves.splice(i, 1); }
+        // draw decoys (temporary visual clones)
+        for (let i = decoys.length - 1; i >= 0; i--) {
+            const d = decoys[i]; d.life -= 1; d.alpha *= 0.98; if (d.life <= 0) { decoys.splice(i,1); continue; }
+            ctx.save(); ctx.globalAlpha = Math.max(0, d.alpha); ctx.fillStyle = d.color; ctx.beginPath(); ctx.ellipse(d.x, d.y - 40, 28, 48, 0, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        }
+
         if (p1 && p2) { p1.update(p2); p2.update(p1); p1.draw(ctx); p2.draw(ctx); }
         for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(ctx); if (particles[i].life <= 0) particles.splice(i, 1); }
         for (let i = texts.length - 1; i >= 0; i--) { texts[i].update(); texts[i].draw(ctx); if (texts[i].life <= 0) texts.splice(i, 1); }
@@ -1199,7 +1525,7 @@
         play();
     }
 
-    function toggleSlowMotion() { slowMotion = !slowMotion; document.getElementById('slow-btn').innerText = `슬로모션 ${slowMotion? 'ON':'OFF'}`; }
+    function toggleSlowMotion() { slowMotion = !slowMotion; const btn = document.getElementById('slow-btn'); if (btn) btn.innerText = `슬로모션 ${slowMotion? 'ON':'OFF'}`; }
 
     // Controls mapping (very small UI)
     let controlMap = JSON.parse(localStorage.getItem('controlMap') || '{}');
