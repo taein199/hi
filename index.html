@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>taein</title>
+    <title>Ultimate Stickman Boxing - True Cataclysm Fusion</title>
     <style>
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -1094,19 +1094,34 @@
     let maxParticles = 9999; let perfMode = 'normal';
     var aiEnabled = false; var slowMotion = false;
 
-    // Simple SFX placeholders (add files in project folder to enable real sounds)
-    const sfx = {
-        hit: new Audio('hit.mp3'),
-        item: new Audio('item.mp3'),
-        ultimate: new Audio('ultimate.mp3'),
-        gacha: gachaAudio
+    // Web Audio API for dynamic SFX generation
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const generateTone = (freq, duration, type='sine') => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = freq; osc.type = type;
+        gain.gain.setValueAtTime(sfxVol * 0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + duration);
     };
-    Object.values(sfx).forEach(a=>{ a.volume = sfxVol; a.preload='auto'; a.load(); });
 
     sfxEnabledEl.addEventListener('change', () => { sfxEnabled = sfxEnabledEl.checked; });
-    sfxVolEl.addEventListener('input', () => { sfxVol = parseFloat(sfxVolEl.value); Object.values(sfx).forEach(a=>a.volume = sfxVol); });
+    sfxVolEl.addEventListener('input', () => { sfxVol = parseFloat(sfxVolEl.value); });
 
-    function playSfx(name) { try { if (!sfxEnabled) return; const a = sfx[name]; if (a) { a.currentTime = 0; a.play().catch(()=>{}); } } catch(e){} }
+    function playSfx(name) {
+        if (!sfxEnabled) return;
+        try {
+            if (name === 'hit') generateTone(150, 0.1, 'sine');
+            else if (name === 'item') generateTone(400, 0.15, 'square');
+            else if (name === 'ultimate') { generateTone(500, 0.2, 'sine'); generateTone(700, 0.2, 'sine'); }
+            else if (name === 'gacha') {
+                if (gachaAudio) { gachaAudio.volume = sfxVol; gachaAudio.currentTime = 0; gachaAudio.play().catch(()=>{}); }
+                else generateTone(600, 0.3, 'triangle');
+            }
+        } catch(e){}
+    }
 
     // cap particles based on perf setting
     function setPerf(mode) { perfMode = mode; if (mode === 'low') maxParticles = 150; else if (mode === 'mid') maxParticles = 600; else maxParticles = 9999; document.getElementById('perf-toggle').innerText = `퍼포먼스: ${mode==='low'?'저사양':mode==='mid'?'중간':'일반'}`; }
